@@ -3882,6 +3882,88 @@
                 destroy
             });
         }
+        function Parallax({swiper, extendParams, on}) {
+            extendParams({
+                parallax: {
+                    enabled: false
+                }
+            });
+            const setTransform = (el, progress) => {
+                const {rtl} = swiper;
+                const rtlFactor = rtl ? -1 : 1;
+                const p = el.getAttribute("data-swiper-parallax") || "0";
+                let x = el.getAttribute("data-swiper-parallax-x");
+                let y = el.getAttribute("data-swiper-parallax-y");
+                const scale = el.getAttribute("data-swiper-parallax-scale");
+                const opacity = el.getAttribute("data-swiper-parallax-opacity");
+                const rotate = el.getAttribute("data-swiper-parallax-rotate");
+                if (x || y) {
+                    x = x || "0";
+                    y = y || "0";
+                } else if (swiper.isHorizontal()) {
+                    x = p;
+                    y = "0";
+                } else {
+                    y = p;
+                    x = "0";
+                }
+                if (x.indexOf("%") >= 0) x = `${parseInt(x, 10) * progress * rtlFactor}%`; else x = `${x * progress * rtlFactor}px`;
+                if (y.indexOf("%") >= 0) y = `${parseInt(y, 10) * progress}%`; else y = `${y * progress}px`;
+                if (typeof opacity !== "undefined" && opacity !== null) {
+                    const currentOpacity = opacity - (opacity - 1) * (1 - Math.abs(progress));
+                    el.style.opacity = currentOpacity;
+                }
+                let transform = `translate3d(${x}, ${y}, 0px)`;
+                if (typeof scale !== "undefined" && scale !== null) {
+                    const currentScale = scale - (scale - 1) * (1 - Math.abs(progress));
+                    transform += ` scale(${currentScale})`;
+                }
+                if (rotate && typeof rotate !== "undefined" && rotate !== null) {
+                    const currentRotate = rotate * progress * -1;
+                    transform += ` rotate(${currentRotate}deg)`;
+                }
+                el.style.transform = transform;
+            };
+            const setTranslate = () => {
+                const {el, slides, progress, snapGrid} = swiper;
+                utils_elementChildren(el, "[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale]").forEach((subEl => {
+                    setTransform(subEl, progress);
+                }));
+                slides.forEach(((slideEl, slideIndex) => {
+                    let slideProgress = slideEl.progress;
+                    if (swiper.params.slidesPerGroup > 1 && swiper.params.slidesPerView !== "auto") slideProgress += Math.ceil(slideIndex / 2) - progress * (snapGrid.length - 1);
+                    slideProgress = Math.min(Math.max(slideProgress, -1), 1);
+                    slideEl.querySelectorAll("[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale], [data-swiper-parallax-rotate]").forEach((subEl => {
+                        setTransform(subEl, slideProgress);
+                    }));
+                }));
+            };
+            const setTransition = (duration = swiper.params.speed) => {
+                const {el} = swiper;
+                el.querySelectorAll("[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale]").forEach((parallaxEl => {
+                    let parallaxDuration = parseInt(parallaxEl.getAttribute("data-swiper-parallax-duration"), 10) || duration;
+                    if (duration === 0) parallaxDuration = 0;
+                    parallaxEl.style.transitionDuration = `${parallaxDuration}ms`;
+                }));
+            };
+            on("beforeInit", (() => {
+                if (!swiper.params.parallax.enabled) return;
+                swiper.params.watchSlidesProgress = true;
+                swiper.originalParams.watchSlidesProgress = true;
+            }));
+            on("init", (() => {
+                if (!swiper.params.parallax.enabled) return;
+                setTranslate();
+            }));
+            on("setTranslate", (() => {
+                if (!swiper.params.parallax.enabled) return;
+                setTranslate();
+            }));
+            on("setTransition", ((_swiper, duration) => {
+                if (!swiper.params.parallax.enabled) return;
+                setTransition(duration);
+            }));
+        }
         function effect_init_effectInit(params) {
             const {effect, swiper, on, setTranslate, setTransition, overwriteParams, perspective, recreateShadows, getEffectParams} = params;
             on("beforeInit", (() => {
@@ -4013,6 +4095,90 @@
                 })
             });
         }
+        function create_shadow_createShadow(params, slideEl, side) {
+            const shadowClass = `swiper-slide-shadow${side ? `-${side}` : ""}`;
+            const shadowContainer = utils_getSlideTransformEl(slideEl);
+            let shadowEl = shadowContainer.querySelector(`.${shadowClass}`);
+            if (!shadowEl) {
+                shadowEl = utils_createElement("div", `swiper-slide-shadow${side ? `-${side}` : ""}`);
+                shadowContainer.append(shadowEl);
+            }
+            return shadowEl;
+        }
+        function EffectCoverflow({swiper, extendParams, on}) {
+            extendParams({
+                coverflowEffect: {
+                    rotate: 50,
+                    stretch: 0,
+                    depth: 100,
+                    scale: 1,
+                    modifier: 1,
+                    slideShadows: true
+                }
+            });
+            const setTranslate = () => {
+                const {width: swiperWidth, height: swiperHeight, slides, slidesSizesGrid} = swiper;
+                const params = swiper.params.coverflowEffect;
+                const isHorizontal = swiper.isHorizontal();
+                const transform = swiper.translate;
+                const center = isHorizontal ? -transform + swiperWidth / 2 : -transform + swiperHeight / 2;
+                const rotate = isHorizontal ? params.rotate : -params.rotate;
+                const translate = params.depth;
+                for (let i = 0, length = slides.length; i < length; i += 1) {
+                    const slideEl = slides[i];
+                    const slideSize = slidesSizesGrid[i];
+                    const slideOffset = slideEl.swiperSlideOffset;
+                    const centerOffset = (center - slideOffset - slideSize / 2) / slideSize;
+                    const offsetMultiplier = typeof params.modifier === "function" ? params.modifier(centerOffset) : centerOffset * params.modifier;
+                    let rotateY = isHorizontal ? rotate * offsetMultiplier : 0;
+                    let rotateX = isHorizontal ? 0 : rotate * offsetMultiplier;
+                    let translateZ = -translate * Math.abs(offsetMultiplier);
+                    let stretch = params.stretch;
+                    if (typeof stretch === "string" && stretch.indexOf("%") !== -1) stretch = parseFloat(params.stretch) / 100 * slideSize;
+                    let translateY = isHorizontal ? 0 : stretch * offsetMultiplier;
+                    let translateX = isHorizontal ? stretch * offsetMultiplier : 0;
+                    let scale = 1 - (1 - params.scale) * Math.abs(offsetMultiplier);
+                    if (Math.abs(translateX) < .001) translateX = 0;
+                    if (Math.abs(translateY) < .001) translateY = 0;
+                    if (Math.abs(translateZ) < .001) translateZ = 0;
+                    if (Math.abs(rotateY) < .001) rotateY = 0;
+                    if (Math.abs(rotateX) < .001) rotateX = 0;
+                    if (Math.abs(scale) < .001) scale = 0;
+                    const slideTransform = `translate3d(${translateX}px,${translateY}px,${translateZ}px)  rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${scale})`;
+                    const targetEl = effect_target_effectTarget(params, slideEl);
+                    targetEl.style.transform = slideTransform;
+                    slideEl.style.zIndex = -Math.abs(Math.round(offsetMultiplier)) + 1;
+                    if (params.slideShadows) {
+                        let shadowBeforeEl = isHorizontal ? slideEl.querySelector(".swiper-slide-shadow-left") : slideEl.querySelector(".swiper-slide-shadow-top");
+                        let shadowAfterEl = isHorizontal ? slideEl.querySelector(".swiper-slide-shadow-right") : slideEl.querySelector(".swiper-slide-shadow-bottom");
+                        if (!shadowBeforeEl) shadowBeforeEl = create_shadow_createShadow(params, slideEl, isHorizontal ? "left" : "top");
+                        if (!shadowAfterEl) shadowAfterEl = create_shadow_createShadow(params, slideEl, isHorizontal ? "right" : "bottom");
+                        if (shadowBeforeEl) shadowBeforeEl.style.opacity = offsetMultiplier > 0 ? offsetMultiplier : 0;
+                        if (shadowAfterEl) shadowAfterEl.style.opacity = -offsetMultiplier > 0 ? -offsetMultiplier : 0;
+                    }
+                }
+            };
+            const setTransition = duration => {
+                const transformElements = swiper.slides.map((slideEl => utils_getSlideTransformEl(slideEl)));
+                transformElements.forEach((el => {
+                    el.style.transitionDuration = `${duration}ms`;
+                    el.querySelectorAll(".swiper-slide-shadow-top, .swiper-slide-shadow-right, .swiper-slide-shadow-bottom, .swiper-slide-shadow-left").forEach((shadowEl => {
+                        shadowEl.style.transitionDuration = `${duration}ms`;
+                    }));
+                }));
+            };
+            effect_init_effectInit({
+                effect: "coverflow",
+                swiper,
+                on,
+                setTranslate,
+                setTransition,
+                perspective: () => true,
+                overwriteParams: () => ({
+                    watchSlidesProgress: true
+                })
+            });
+        }
         function initSliders() {
             if (document.querySelector(".services__slider")) new core(".services__slider", {
                 modules: [ Navigation, Pagination ],
@@ -4130,6 +4296,58 @@
                         slidesPerView: 2.2,
                         spaceBetween: 40
                     }
+                },
+                on: {}
+            });
+            if (document.querySelector(".gallery__slider")) new core(".gallery__slider", {
+                modules: [ Navigation, Pagination, EffectCoverflow ],
+                observer: true,
+                observeParents: true,
+                slidesPerView: 1.5,
+                centeredSlides: true,
+                speed: 800,
+                effect: "coverflow",
+                coverflowEffect: {
+                    rotate: 20,
+                    stretch: 300,
+                    depth: 0,
+                    slideShadows: true
+                },
+                breakpoints: {
+                    320: {
+                        slidesPerView: 1
+                    },
+                    480: {
+                        slidesPerView: 1.5
+                    }
+                },
+                loop: true,
+                pagination: {
+                    el: ".gallery__slider .swiper-pagination",
+                    clickable: true
+                },
+                navigation: {
+                    prevEl: ".gallery__slider .swiper-button-prev",
+                    nextEl: ".gallery__slider .swiper-button-next"
+                },
+                on: {}
+            });
+            if (document.querySelector(".reviews__slider")) new core(".reviews__slider", {
+                modules: [ Navigation, Pagination, Parallax ],
+                observer: true,
+                observeParents: true,
+                centeredSlides: true,
+                speed: 800,
+                slidesPerView: 1,
+                parallax: true,
+                loop: true,
+                pagination: {
+                    el: ".reviews__slider .swiper-pagination",
+                    clickable: true
+                },
+                navigation: {
+                    prevEl: ".reviews__slider .swiper-button-prev",
+                    nextEl: ".reviews__slider .swiper-button-next"
                 },
                 on: {}
             });
