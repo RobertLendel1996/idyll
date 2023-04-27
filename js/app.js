@@ -4351,6 +4351,37 @@
                 },
                 on: {}
             });
+            if (document.querySelector(".contacts__slider")) new core(".contacts__slider", {
+                modules: [ Navigation, Pagination ],
+                observer: true,
+                observeParents: true,
+                speed: 800,
+                slidesPerView: 2,
+                loop: true,
+                pagination: {
+                    el: ".contacts__slider .swiper-pagination",
+                    clickable: true
+                },
+                navigation: {
+                    prevEl: ".contacts__slider .swiper-button-prev",
+                    nextEl: ".contacts__slider .swiper-button-next"
+                },
+                breakpoints: {
+                    320: {
+                        slidesPerView: 1.2,
+                        spaceBetween: 20
+                    },
+                    768: {
+                        slidesPerView: 1.5,
+                        spaceBetween: 30
+                    },
+                    992: {
+                        slidesPerView: 2,
+                        spaceBetween: 40
+                    }
+                },
+                on: {}
+            });
         }
         window.addEventListener("load", (function(e) {
             initSliders();
@@ -4559,6 +4590,20 @@
                 animOnScroll();
             }), 300);
         }
+        function ready() {
+            var inputs = document.querySelectorAll(".form-communication__input_file");
+            Array.prototype.forEach.call(inputs, (function(input) {
+                var label = input.nextElementSibling;
+                var labelVal = label.innerHTML;
+                input.addEventListener("change", (function(e) {
+                    console.log(this.files);
+                    var fileName = "";
+                    if (this.files && this.files.length > 1) fileName = (this.getAttribute("data-multiple-caption") || "").replace("{count}", this.files.length++); else fileName = this.files[0].name;
+                    if (fileName) label.querySelector("span").innerHTML = fileName; else label.innerHTML = labelVal;
+                }));
+            }));
+        }
+        document.addEventListener("DOMContentLoaded", ready);
         window["FLS"] = true;
         isWebp();
         addLoadedClass();
