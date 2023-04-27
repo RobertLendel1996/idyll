@@ -4660,6 +4660,25 @@
                 },
                 on: {}
             });
+            if (document.querySelector(".tabs-compound__slider")) new core(".tabs-compound__slider", {
+                modules: [ Navigation, Pagination, Parallax ],
+                observer: true,
+                observeParents: true,
+                speed: 1200,
+                slidesPerView: 1,
+                spaceBetween: 20,
+                parallax: true,
+                loop: true,
+                pagination: {
+                    el: ".tabs-compound__slider .swiper-pagination",
+                    clickable: true
+                },
+                navigation: {
+                    prevEl: ".tabs-compound__slider .swiper-button-prev",
+                    nextEl: ".tabs-compound__slider .swiper-button-next"
+                },
+                on: {}
+            });
         }
         window.addEventListener("load", (function(e) {
             initSliders();
